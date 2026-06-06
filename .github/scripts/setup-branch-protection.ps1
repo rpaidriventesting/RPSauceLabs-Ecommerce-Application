@@ -63,7 +63,7 @@ $protectionRules = @{
 
 $protectionJson = $protectionRules | ConvertTo-Json -Depth 10
 
-Write-Host "🔒 Configuring branch protection for '$Branch' branch..." -ForegroundColor Cyan
+Write-Host "[LOCK] Configuring branch protection for $Branch branch..." -ForegroundColor Cyan
 
 try {
     $response = Invoke-WebRequest `
@@ -73,7 +73,7 @@ try {
         -Body $protectionJson `
         -UseBasicParsing
     
-    Write-Host "✅ Branch protection rules configured successfully!" -ForegroundColor Green
+    Write-Host "[SUCCESS] Branch protection rules configured successfully!" -ForegroundColor Green
     Write-Host "   - Requires passing CI/CD checks" -ForegroundColor Green
     Write-Host "   - Requires pull request review" -ForegroundColor Green
     Write-Host "   - Enforces admin rules" -ForegroundColor Green
@@ -91,7 +91,7 @@ catch {
 }
 
 # Configure CODEOWNERS file
-Write-Host "`n📝 Creating CODEOWNERS file..." -ForegroundColor Cyan
+Write-Host "`n[INFO] Creating CODEOWNERS file..." -ForegroundColor Cyan
 
 $codeownersContent = @"
 # GitHub CODEOWNERS file
@@ -118,14 +118,14 @@ $codeownersPath = ".github/CODEOWNERS"
 
 try {
     $codeownersContent | Out-File -FilePath $codeownersPath -Encoding UTF8 -Force
-    Write-Host "✅ CODEOWNERS file created at $codeownersPath" -ForegroundColor Green
+    Write-Host "[SUCCESS] CODEOWNERS file created at $codeownersPath" -ForegroundColor Green
 }
 catch {
     Write-Error "Failed to create CODEOWNERS file: $_"
 }
 
 # Configure repository settings
-Write-Host "`n⚙️  Configuring repository settings..." -ForegroundColor Cyan
+Write-Host "`n[CONFIG] Configuring repository settings..." -ForegroundColor Cyan
 
 $repoSettings = @{
     has_issues = $true
@@ -150,7 +150,7 @@ try {
         -Body $settingsJson `
         -UseBasicParsing | Out-Null
     
-    Write-Host "✅ Repository settings configured successfully!" -ForegroundColor Green
+    Write-Host "[SUCCESS] Repository settings configured successfully!" -ForegroundColor Green
     Write-Host "   - Auto-delete head branches after merge enabled" -ForegroundColor Green
 }
 catch {
@@ -158,25 +158,25 @@ catch {
 }
 
 # Display summary
-Write-Host "`n═══════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "✅ BRANCH PROTECTION SETUP COMPLETE" -ForegroundColor Green
-Write-Host "═══════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "`n====================================================" -ForegroundColor Cyan
+Write-Host "[SUCCESS] BRANCH PROTECTION SETUP COMPLETE" -ForegroundColor Green
+Write-Host "====================================================" -ForegroundColor Cyan
 Write-Host "`nBranch: $Branch"
 Write-Host "Required Status Checks:"
-Write-Host "  ✓ Build Application"
-Write-Host "  ✓ Unit & Integration Tests"
-Write-Host "  ✓ Code Quality & Linting"
-Write-Host "  ✓ Security Checks"
-Write-Host "  ✓ PR Validation"
-Write-Host "  ✓ Code Review Checks"
-Write-Host "  ✓ Automated E2E Tests"
+Write-Host "  [OK] Build Application"
+Write-Host "  [OK] Unit & Integration Tests"
+Write-Host "  [OK] Code Quality & Linting"
+Write-Host "  [OK] Security Checks"
+Write-Host "  [OK] PR Validation"
+Write-Host "  [OK] Code Review Checks"
+Write-Host "  [OK] Automated E2E Tests"
 Write-Host "`nPull Request Requirements:"
-Write-Host "  ✓ At least 1 approval required"
-Write-Host "  ✓ Stale reviews dismissed"
-Write-Host "  ✓ Conversation resolution required"
-Write-Host "  ✓ Admin enforcement enabled"
+Write-Host "  [OK] At least 1 approval required"
+Write-Host "  [OK] Stale reviews dismissed"
+Write-Host "  [OK] Conversation resolution required"
+Write-Host "  [OK] Admin enforcement enabled"
 Write-Host "`nBranch Settings:"
-Write-Host "  ✓ Force pushes disabled"
-Write-Host "  ✓ Force deletions disabled"
-Write-Host "  ✓ Auto-delete on merge enabled"
-Write-Host "`n═══════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "  [OK] Force pushes disabled"
+Write-Host "  [OK] Force deletions disabled"
+Write-Host "  [OK] Auto-delete on merge enabled"
+Write-Host "`n====================================================" -ForegroundColor Cyan

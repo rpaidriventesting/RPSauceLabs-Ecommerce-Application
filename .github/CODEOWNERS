@@ -1,31 +1,18 @@
-# GitHub CODEOWNERS - Code ownership and automatic PR reviews
-# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+﻿# GitHub CODEOWNERS file
+# This file defines code owners for automatic PR reviews
 
 # Default owners for all files
 * @rpaidriventesting
 
-# CI/CD and automation workflows
-.github/workflows/ @rpaidriventesting
-.github/scripts/ @rpaidriventesting
+# Automation framework tests
+.github/workflows/playwright-tests.yml @rpaidriventesting
+.github/workflows/pr-checks.yml @rpaidriventesting
 
-# React components
-/src/components/*.jsx @rpaidriventesting
-/src/components/**/*.jsx @rpaidriventesting
+# Component owners
+/src/components/ @rpaidriventesting
+/src/pages/ @rpaidriventesting
 
-# Pages and routing
-/src/pages/*.jsx @rpaidriventesting
-
-# Configuration and build files
-babel.config.js @rpaidriventesting
+# Configuration
+/public/ @rpaidriventesting
 Dockerfile @rpaidriventesting
-Jenkinsfile @rpaidriventesting
-package.json @rpaidriventesting
-tsconfig.json @rpaidriventesting
-
-# Tests
-/test/ @rpaidriventesting
-/src/__tests__/ @rpaidriventesting
-
-# Documentation
-*.md @rpaidriventesting
-TEST_DOCUMENTATION.md @rpaidriventesting
+babel.config.js @rpaidriventesting
