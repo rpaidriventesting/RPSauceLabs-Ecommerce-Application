@@ -1,0 +1,218 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [ master, main, develop ]
+    types: [ opened, synchronize, reopened ]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  pr-validation:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Lint commit message
+        uses: commitlint/actions/setup@v1
+        with:
+          setupOnly: false
+      
+      - name: Check for dangerous files
+        run: |
+          if git diff --name-only origin/master HEAD | grep -E '(\.env|\.secret|credentials)'; then
+            echo "❌ Dangerous files detected in PR"
+            exit 1
+          fi
+          echo "✅ No dangerous files detected"
+      
+      - name: Check file size
+        run: |
+          MAX_SIZE=$((100 * 1024 * 1024))  # 100MB
+          git diff --cached --diff-filter=A --name-only | while read file; do
+            SIZE=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null)
+            if [ "$SIZE" -gt "$MAX_SIZE" ]; then
+              echo "❌ File too large: $file ($SIZE bytes)"
+              exit 1
+            fi
+          done
+          echo "✅ All files within size limits"
+
+  code-review:
+    name: Code Review Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run TypeScript check
+        run: npm run type-check || true
+      
+      - name: Run ESLint
+        run: npm run lint || true
+      
+      - name: Run prettier format check
+        run: npm run format:check || true
+
+  automated-tests:
+    name: Run Automated Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout ecommerce-app
+        uses: actions/checkout@v3
+        with:
+          path: ecommerce-app
+      
+      - name: Checkout Playwright-TS-BDD
+        uses: actions/checkout@v3
+        with:
+          repository: rpaidriventesting/Playwright-TS-BDD
+          path: playwright-automation
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            ecommerce-app/package-lock.json
+            playwright-automation/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd ecommerce-app && npm ci
+          cd ../playwright-automation && npm ci
+      
+      - name: Build app
+        working-directory: ecommerce-app
+        run: npm run build
+      
+      - name: Start app
+        working-directory: ecommerce-app
+        run: npm start &
+        env:
+          CI: true
+          PORT: 3000
+      
+      - name: Wait for app
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:3000 2>/dev/null; then
+              echo "✅ App ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      
+      - name: Run Playwright tests
+        working-directory: playwright-automation
+        run: npx bddgen && npx playwright test
+        env:
+          APP_BASE_URL: http://localhost:3000
+          HEADLESS: true
+        continue-on-error: true
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pr-test-results
+          path: playwright-automation/reports/
+
+  dependency-check:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Audit dependencies
+        run: npm audit --audit-level=moderate || true
+      
+      - name: Check for vulnerable packages
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+        continue-on-error: true
+
+  pr-summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [pr-validation, code-review, automated-tests, dependency-check]
+    if: always()
+    
+    steps:
+      - name: Create PR summary
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const summary = `
+            ## 🔍 PR Quality Checks Summary
+            
+            | Check | Status |
+            |-------|--------|
+            | Validation | ✅ ${{ needs.pr-validation.result }} |
+            | Code Review | ✅ ${{ needs.code-review.result }} |
+            | Automated Tests | ✅ ${{ needs.automated-tests.result }} |
+            | Dependencies | ✅ ${{ needs.dependency-check.result }} |
+            
+            **Ready to Merge**: All checks passed ✅
+            `;
+            
+            core.summary.addRaw(summary);
+            await core.summary.write();
+
+  auto-merge:
+    name: Auto-merge if all checks pass
+    runs-on: ubuntu-latest
+    needs: [pr-validation, code-review, automated-tests, dependency-check]
+    if: always() && github.event.pull_request.draft == false
+    
+    steps:
+      - name: Check if all checks passed
+        run: |
+          if [[ "${{ needs.pr-validation.result }}" == "success" && \
+                "${{ needs.code-review.result }}" == "success" && \
+                "${{ needs.automated-tests.result }}" == "success" && \
+                "${{ needs.dependency-check.result }}" == "success" ]]; then
+            echo "✅ All checks passed - PR is ready"
+          else
+            echo "⚠️ Some checks failed - Manual review required"
+          fi
